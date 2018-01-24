@@ -1,27 +1,38 @@
-import glob
-from shutil import copyfile
+"""Download the haarcascade frontalface and eye. Place the downloaded files to the program's directory
+Root : https://github.com/opencv/opencv/tree/master/data/haarcascades
+https://github.com/Itseez/opencv/blob/master/data/haarcascades/haarcascade_frontalface_default.xml
+https://github.com/Itseez/opencv/blob/master/data/haarcascades/haarcascade_eye.xml
+"""
 
-emotions = ["neutral", "anger", "contempt", "disgust", "fear", "happy", "sadness", "surprise"]  # Define emotion order
-participants = glob.glob("source_emotion\\*")  # Returns a list of all folders with participant numbers
+import numpy as np
+import cv2
 
-for x in participants:
-    part = "%s" % x[-4:]  # store current participant number
-    for sessions in glob.glob("%s\\*" % x):  # Store list of sessions for current participant
-        for files in glob.glob("%s\\*" % sessions):
-            current_session = files[20:-30]
-            file = open(files, 'r')
+# multiple cascades: https://github.com/Itseez/opencv/tree/master/data/haarcascades
 
-            emotion = int(
-                float(file.readline()))  # emotions are encoded as a float, readline as float, then convert to integer.
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-            sourcefile_emotion = glob.glob("source_images\\%s\\%s\\*" % (part, current_session))[
-                -1]  # get path for last image in sequence, which contains the emotion
-            sourcefile_neutral = glob.glob("source_images\\%s\\%s\\*" % (part, current_session))[
-                0]  # do same for neutral image
+eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
 
-            dest_neut = "sorted_set\\neutral\\%s" % sourcefile_neutral[25:]  # Generate path to put neutral image
-            dest_emot = "sorted_set\\%s\\%s" % (
-            emotions[emotion], sourcefile_emotion[25:])  # Do same for emotion containing image
+cap = cv2.VideoCapture(0)
 
-            copyfile(sourcefile_neutral, dest_neut)  # Copy file
-            copyfile(sourcefile_emotion, dest_emot)  # Copy file
+while 1:
+    ret, img = cap.read()
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+    for (x,y,w,h) in faces:
+        cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
+        roi_gray = gray[y:y+h, x:x+w]
+        roi_color = img[y:y+h, x:x+w]
+        
+        eyes = eye_cascade.detectMultiScale(roi_gray)
+        for (ex,ey,ew,eh) in eyes:
+            cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
+
+    cv2.imshow('img',img)
+    k = cv2.waitKey(30) & 0xff
+    if k == 27:
+        break
+
+cap.release()
+cv2.destroyAllWindows()
